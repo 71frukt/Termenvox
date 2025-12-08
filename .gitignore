@@ -1,0 +1,22 @@
+# Arduino IDE
+*.elf
+*.hex
+*.eep
+*.bin
+*.pdf
+
+# Build outputs
+build-*/
+
+# IDE settings
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Arduino IDE temporary files
+*.ino.bak
+preproc/*
