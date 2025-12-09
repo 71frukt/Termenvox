@@ -3,17 +3,17 @@
 #define ANTENNA_PIN    32
 #define DAC_CH         DAC_CHANNEL_1
 
-const int SAMPLE_RATE = 22050;
-const int BUFFER_SIZE = 128;
-const int BASE_FREQ = 80;
-const int MAX_FREQ = 1200;
+const int   SAMPLE_RATE = 22050;
+const int   BUFFER_SIZE = 128;
+const int   BASE_FREQ = 80;
+const int   MAX_FREQ = 1200;
 const float LFO_RATE = 0.2f;
 
-float ГРОМКОСТЬ = 3.0f;
+float VOLUME = 3.0f;
 
-// ФИКСИРОВАННЫЕ ЗНАЧЕНИЯ (подбери их!)
-const int MIN_RAW_VALUE = 0;      // Минимальное значение ADC
-const int MAX_RAW_VALUE = 500;    // Максимальное при полном касании
+const int MIN_RAW_VALUE = 100;      // Минимальное значение ADC
+const int MAX_RAW_VALUE = 900;    // Максимальное при полном касании
+
 
 // Плавность регулировки
 const float VOLUME_BOOST = 2.0f;
@@ -47,7 +47,7 @@ void generateSmoothTone(uint8_t* buffer, float frequency, float volume) {
     if (phase >= 1.0f) phase -= 1.0f;
 
     // Усиление с насыщением
-    sample = tanhf(sample * volume * VOLUME_BOOST * ГРОМКОСТЬ) * 0.9f;
+    sample = tanhf(sample * volume * VOLUME_BOOST * VOLUME) * 0.9f;
 
     float dacValue = 128.0f + sample * 120.0f;
     if (dacValue < 0.0f) dacValue = 0.0f;
@@ -71,20 +71,55 @@ void setup() {
   Serial.println("=== ТЕРМЕНВОКС ===");
   Serial.println("Определи значения MIN и MAX:");
   Serial.println("1. Не касайся антенны 3 секунды...");
-  delay(3000);
-  
-  int baseValue = analogRead(ANTENNA_PIN);
-  Serial.printf("Без касания: ADC = %d\n", baseValue);
-  
+
+  const int CALIBRATION_TIME = 3000;       // время сбора данных (мс)
+  const int SAMPLE_DELAY = 5;              // задержка между измерениями (мс)
+                                          // меньше — больше точность
+
+  // ---- Считывание среднего без касания ----
+  unsigned long startTime = millis();
+  long sumBase = 0;
+  int countBase = 0;
+
+  while (millis() - startTime < CALIBRATION_TIME) {
+      int val = analogRead(ANTENNA_PIN);
+      sumBase += val;
+      countBase++;
+
+      Serial.printf("Без касания: %d\n", val);   // показываем все значения
+      delay(SAMPLE_DELAY);
+  }
+
+  int baseValue = sumBase / countBase;      // среднее значение
+  Serial.printf("Среднее без касания: %d\n\n", baseValue);
+
+
+  // ---- Считывание среднего с касанием ----
   Serial.println("2. Теперь коснись антенны...");
-  delay(3000);
-  
-  int touchValue = analogRead(ANTENNA_PIN);
-  Serial.printf("С касанием: ADC = %d\n", touchValue);
-  
-  Serial.println("\nСкопируй эти значения и поменяй в коде:");
+  delay(1000);   // небольшая пауза перед измерениями
+
+  startTime = millis();
+  long sumTouch = 0;
+  int countTouch = 0;
+
+  while (millis() - startTime < CALIBRATION_TIME) {
+      int val = analogRead(ANTENNA_PIN);
+      sumTouch += val;
+      countTouch++;
+
+      Serial.printf("С касанием: %d\n", val);    // показываем все значения
+      delay(SAMPLE_DELAY);
+  }
+
+  int touchValue = sumTouch / countTouch;    // среднее значение
+  Serial.printf("Среднее с касанием: %d\n\n", touchValue);
+
+
+  // ---- Вывод итоговых значений ----
+  Serial.println("Скопируй эти значения и поменяй в коде:");
   Serial.printf("const int MIN_RAW_VALUE = %d;\n", baseValue);
   Serial.printf("const int MAX_RAW_VALUE = %d;\n", touchValue);
+
   
   Serial.println("\nЗагрузи код с новыми значениями!");
 }
