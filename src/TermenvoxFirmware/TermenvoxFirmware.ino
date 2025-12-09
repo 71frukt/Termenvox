@@ -1,17 +1,16 @@
-#include <driver/dac.h>
-
 #define DEBUG
 
 #ifdef DEBUG
-  #define ON_DEBUG(...)         \
-    do {                        \
-        __VA_ARGS__;           \
-    } while(0)                  \
-
+  #define ON_DEBUG(...) do { __VA_ARGS__; } while (0)
 #else
   #define ON_DEBUG(...)
 #endif
 
+//============================================================================================================
+
+
+//============= SOUND ========================================================================================
+#include <driver/dac.h>
 
 #define ANTENNA_PIN    32
 #define DAC_CH         DAC_CHANNEL_1
@@ -48,6 +47,88 @@ int  AntennaGetValue();
 
 void DynamicSing(int antenna_value);
 void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume);
+//============= /SOUND =======================================================================================
+
+
+//============= BLUETOOTH ====================================================================================
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+
+#define DEVICE_NAME "ESP32_LED"
+
+static BLEUUID SERVICE_UUID("12345678-1234-5678-1234-56789abcdef0");
+static BLEUUID CHARACTERISTIC_UUID_LED("12345678-1234-5678-1234-56789abcdef1");
+
+BLEServer*        pServer           = nullptr;
+BLECharacteristic* pLedCharacteristic = nullptr;
+
+bool deviceConnected = false;
+
+void BleInit();
+
+// ----------------- Колбэки сервера -----------------
+
+class MyServerCallbacks : public BLEServerCallbacks
+{
+  void onConnect(BLEServer* pServer) override
+  {
+    deviceConnected = true;
+    ON_DEBUG(Serial.println("Клиент подключился"));
+  }
+
+  void onDisconnect(BLEServer* pServer) override {
+    deviceConnected = false;
+    ON_DEBUG(Serial.println("Клиент отключился"));
+    pServer->getAdvertising()->start();
+    ON_DEBUG(Serial.println("Реклама снова запущена"));
+  }
+};
+
+// ----------------- Колбэк характеристики -----------------
+
+class ParamCharCallbacks : public BLECharacteristicCallbacks
+{
+  void onWrite(BLECharacteristic* pCharacteristic) override
+  {
+    String value = pCharacteristic->getValue();  // <-- исправлено
+
+    if (value.length() == 0) {
+      return;
+    }
+
+    ON_DEBUG(Serial.print("Сырые данные из BLE: "));
+    ON_DEBUG(Serial.println(value));
+
+    int a = 0;
+    int b = 0;
+
+    // Парсим строку формата "A:<int>;B:<int>"
+    // value.c_str() даёт const char* для sscanf
+    int parsed = sscanf(value.c_str(), "A:%d;B:%d", &a, &b);
+
+    if (parsed == 2)
+    {
+      ON_DEBUG(
+        Serial.print("Успешно распарсили: A = ");
+        Serial.print(a);
+        Serial.print(" , B = ");
+        Serial.println(b);
+      );
+
+      MIN_RAW_VALUE = a;
+      MAX_RAW_VALUE = b;
+    }
+    
+    else
+    {
+      ON_DEBUG(Serial.println("Не удалось распарсить строку в формате A:<int>;B:<int>"));
+    }
+  }
+};
+//============= /BLUETOOTH ===================================================================================
+
+
 
 
 void setup()
@@ -59,6 +140,7 @@ void setup()
 
   ON_DEBUG(Serial.println("=== ТЕРМЕНВОКС СТАРТУЕТ ==="));
 
+  BleInit();
   AntennaSetup();
 }
 
@@ -68,7 +150,16 @@ void loop()
   DynamicSing(AntennaGetValue());
 }
 
+
+
+
 //============================================================================================================
+
+
+
+
+//============= SOUND ========================================================================================
+
 void AntennaSetup()
 {
   pinMode(ANTENNA_PIN, INPUT);
@@ -160,8 +251,14 @@ void DynamicSing(int antenna_value)
   
   if (antenna_value > MIN_RAW_VALUE)
   {
-    float norm = (float)(antenna_value - MIN_RAW_VALUE) / 
-                 (float)(MAX_RAW_VALUE - MIN_RAW_VALUE);
+    int range = MAX_RAW_VALUE - MIN_RAW_VALUE;
+    if (range <= 0)
+    {
+      ON_DEBUG(Serial.printf("equal MAX_RAW_VALUE and MIN_RAW_VALUE!"));
+      return;
+    }
+
+    float norm = float(antenna_value - MIN_RAW_VALUE) / float(range);
     
     // Ограничение
     norm = constrain(norm, 0.0f, 1.0f);
@@ -254,3 +351,44 @@ void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume)
     buffer[i] = (uint8_t)dacValue;
   }
 }
+
+//============= /SOUND =======================================================================================
+
+
+
+//============= BLUETOOTH ====================================================================================
+
+void BleInit()
+{
+  BLEDevice::init(DEVICE_NAME);
+
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  BLEService* pService = pServer->createService(SERVICE_UUID);
+
+  pLedCharacteristic = pService->createCharacteristic(
+    CHARACTERISTIC_UUID_LED,
+    BLECharacteristic::PROPERTY_WRITE
+  );
+
+  pLedCharacteristic->setCallbacks(new ParamCharCallbacks());
+
+  pService->start();
+
+  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);
+  pAdvertising->setMaxPreferred(0x12);
+
+  BLEDevice::startAdvertising();
+
+  //ON_DEBUG(
+    Serial.println("BLE сервер запущен, реклама включена");
+    Serial.print("Имя устройства: ");
+    Serial.println(DEVICE_NAME);
+  //);
+}
+
+//============= /BLUETOOTH ===================================================================================
