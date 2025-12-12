@@ -98,7 +98,7 @@ public:
 
   void SerialTranslate()
   {
-    Serial.print("MOVE ");
+    Serial.print("GOTO ");
     Serial.print(smoothed_x);
     Serial.print(' ');
     Serial.print(smoothed_y);
@@ -253,6 +253,8 @@ void loop()
   {
     MouseController.Update(antenna_x, antenna_y);
     MouseController.SerialTranslate();
+
+    delay(100);
   }
 }
 
