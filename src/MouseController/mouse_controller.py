@@ -46,10 +46,10 @@ def parse_goto(line: str):
 def main():
     port = find_port()
     if port is None:
-        print("❌ COM-порты не найдены. Подключи ESP32 и попробуй снова.")
+        print("COM-порты не найдены. Подключи ESP32 и попробуй снова.")
         return
 
-    print(f"✔ Открываю порт: {port} @ {BAUD}")
+    print(f"Открываю порт: {port} @ {BAUD}")
     ser = serial.Serial(port, BAUD, timeout=1)
 
     screen_w, screen_h = pyautogui.size()
@@ -79,14 +79,9 @@ def main():
 
             x_norm, y_norm = data
 
-            # --- ВАРИАНТ A: если ESP32 шлёт 0..1 ---
             x_norm = clamp(x_norm, 0.0, 1.0)
             y_norm = clamp(y_norm, 0.0, 1.0)
 
-            # --- ВАРИАНТ B: если ESP32 шлёт -1..+1 ---
-            # Раскомментируй эти 2 строки и закомментируй блок "ВАРИАНТ A" выше:
-            # x_norm = clamp((x_norm + 1.0) * 0.5, 0.0, 1.0)
-            # y_norm = clamp((y_norm + 1.0) * 0.5, 0.0, 1.0)
 
             SAFE_MARGIN = 5  # пикселей от края экрана
 
