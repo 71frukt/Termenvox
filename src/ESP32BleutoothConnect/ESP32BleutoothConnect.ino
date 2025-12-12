@@ -10,7 +10,7 @@
 static BLEUUID SERVICE_UUID("12345678-1234-5678-1234-56789abcdef0");
 static BLEUUID CHARACTERISTIC_UUID_LED("12345678-1234-5678-1234-56789abcdef1");
 
-BLEServer*        pServer           = nullptr;
+BLEServer*         pServer            = nullptr;
 BLECharacteristic* pLedCharacteristic = nullptr;
 
 bool deviceConnected = false;

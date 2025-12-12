@@ -9,10 +9,43 @@
 //============================================================================================================
 
 
+//============= ANTENNAS =====================================================================================
+#define ANTENNA_X_PIN    32
+#define ANTENNA_Y_PIN    34
+
+int MIN_RAW_VALUE = 100;    // Минимальное значение ADC
+int MAX_RAW_VALUE = 900;    // Максимальное при полном касании
+
+class Antenna
+{
+public:
+  Antenna(int antenna_pin, float antenna_filter_coeff = 0.1)
+    : pin(antenna_pin)
+    , filter_coeff(antenna_filter_coeff)
+  {
+
+  }
+
+  int   GetFilteredValue();
+  float GetFilteredValueNormalized();
+
+  void Calibrate();
+
+  const int pin;
+  const float filter_coeff;
+};
+
+// void AntennaSetup();
+// void AntennaCalibrate();
+// int  AntennaGetValue();
+//============= /ANTENNAS ====================================================================================
+
+
 //============= SOUND ========================================================================================
 #include <driver/dac.h>
 
-#define ANTENNA_PIN    32
+bool USE_SOUND = true;
+
 #define DAC_CH         DAC_CHANNEL_1
 
 
@@ -22,10 +55,8 @@ const int   BASE_FREQ   = 80;
 const int   MAX_FREQ    = 1200;
 const float LFO_RATE    = 0.2f;
 
-float VOLUME = 3.0f;
-
-int MIN_RAW_VALUE = 100;    // Минимальное значение ADC
-int MAX_RAW_VALUE = 900;    // Максимальное при полном касании
+float VOLUME            = 3.0f;
+float VOLUME_MULTIPLIER = 1.0;
 
 
 // Плавность регулировки
@@ -41,13 +72,47 @@ float smoothedVolume = 0;
 float smoothedFrequency = BASE_FREQ;
 
 
-void AntennaSetup();
-void AntennaCalibrate();
-int  AntennaGetValue();
-
-void DynamicSing(int antenna_value);
+void DynamicSing(float volume);
 void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume);
 //============= /SOUND =======================================================================================
+
+
+//============= MOUSE ========================================================================================
+bool USE_MOUSE = true;
+
+class Mouse
+{
+public:
+  explicit Mouse(float smooth_k = 0.05)
+    : smooth_k_(smooth_k)
+  {}
+
+  float GetX() const { return smoothed_x; }
+  float GetY() const { return smoothed_y; }
+
+  void Update(float new_x, float new_y)
+  {
+    smoothed_x = smoothed_x * (1 - smooth_k_) + new_x * smooth_k_;
+    smoothed_y = smoothed_y * (1 - smooth_k_) + new_y * smooth_k_;
+  }
+
+  void SerialTranslate()
+  {
+    Serial.print("MOVE ");
+    Serial.print(smoothed_x);
+    Serial.print(' ');
+    Serial.print(smoothed_y);
+    Serial.print('\n');
+  }
+
+private:
+  const float smooth_k_;
+
+  float smoothed_x;     // [0; 1]
+  float smoothed_y;     // [0; 1]
+};
+//============= /MOUSE =======================================================================================
+
 
 
 //============= BLUETOOTH ====================================================================================
@@ -60,7 +125,7 @@ void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume);
 static BLEUUID SERVICE_UUID("12345678-1234-5678-1234-56789abcdef0");
 static BLEUUID CHARACTERISTIC_UUID_LED("12345678-1234-5678-1234-56789abcdef1");
 
-BLEServer*        pServer           = nullptr;
+BLEServer*         pServer            = nullptr;
 BLECharacteristic* pLedCharacteristic = nullptr;
 
 bool deviceConnected = false;
@@ -91,7 +156,7 @@ class ParamCharCallbacks : public BLECharacteristicCallbacks
 {
   void onWrite(BLECharacteristic* pCharacteristic) override
   {
-    String value = pCharacteristic->getValue();  // <-- исправлено
+    String value = pCharacteristic->getValue();
 
     if (value.length() == 0) {
       return;
@@ -102,34 +167,60 @@ class ParamCharCallbacks : public BLECharacteristicCallbacks
 
     int a = 0;
     int b = 0;
+    int c = 0;
+    int s = 0;
+    int m = 0;
 
-    // Парсим строку формата "A:<int>;B:<int>"
-    // value.c_str() даёт const char* для sscanf
-    int parsed = sscanf(value.c_str(), "A:%d;B:%d", &a, &b);
+    // Ждём строку формата:
+    // A:<int>;B:<int>;C:<int>;S:<int>;M:<int>
+    int parsed = sscanf(
+      value.c_str(),
+      "A:%d;B:%d;C:%d;S:%d;M:%d",
+      &a, &b, &c, &s, &m
+    );
 
-    if (parsed == 2)
-    {
-      ON_DEBUG(
-        Serial.print("Успешно распарсили: A = ");
-        Serial.print(a);
-        Serial.print(" , B = ");
-        Serial.println(b);
-      );
-
+    if (parsed >= 2) {               // хотя бы A и B есть
       MIN_RAW_VALUE = a;
       MAX_RAW_VALUE = b;
     }
-    
-    else
-    {
-      ON_DEBUG(Serial.println("Не удалось распарсить строку в формате A:<int>;B:<int>"));
+
+    if (parsed >= 3) {               // есть ещё C = громкость (0..100)
+      VOLUME_MULTIPLIER = (float) m / 100;
+    }
+
+    if (parsed >= 5) {               // есть S и M
+      USE_SOUND = (s != 0);
+      USE_MOUSE = (m != 0);
+    }
+
+    ON_DEBUG(
+      Serial.print("MIN_RAW_VALUE = ");
+      Serial.print(MIN_RAW_VALUE);
+      Serial.print(" , MAX_RAW_VALUE = ");
+      Serial.println(MAX_RAW_VALUE);
+
+      Serial.print("VOLUME_MULTIPLIER = ");
+      Serial.println(VOLUME_MULTIPLIER, 3);
+
+      Serial.print("USE_SOUND = ");
+      Serial.print(USE_SOUND ? "ON" : "OFF");
+      Serial.print(" , USE_MOUSE = ");
+      Serial.println(USE_MOUSE ? "ON" : "OFF");
+    );
+
+    if (parsed < 2) {
+      ON_DEBUG(Serial.println("Не удалось распарсить строку в формате A:...;B:...;C:...;S:...;M:..."));
     }
   }
 };
+
 //============= /BLUETOOTH ===================================================================================
 
 
+Antenna AntennaX = Antenna(ANTENNA_X_PIN);
+Antenna AntennaY = Antenna(ANTENNA_Y_PIN);
 
+Mouse MouseController = Mouse();
 
 void setup()
 {
@@ -138,16 +229,31 @@ void setup()
 
   dac_output_enable(DAC_CH);
 
+  // Настройка ADC
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+
   ON_DEBUG(Serial.println("=== ТЕРМЕНВОКС СТАРТУЕТ ==="));
 
   BleInit();
-  AntennaSetup();
+  // AntennaX = Antenna(ANTENNA_X_PIN);
 }
 
 void loop()
 {
-  // Чтение с фильтрацией
-  DynamicSing(AntennaGetValue());
+  float antenna_x = AntennaX.GetFilteredValueNormalized();
+  float antenna_y = AntennaY.GetFilteredValueNormalized();
+
+  if (USE_SOUND)
+  {
+    DynamicSingTone(antenna_x, antenna_y);
+  }
+
+  if (USE_MOUSE)
+  {
+    MouseController.Update(antenna_x, antenna_y);
+    MouseController.SerialTranslate();
+  }
 }
 
 
@@ -158,18 +264,42 @@ void loop()
 
 
 
-//============= SOUND ========================================================================================
+//============= ANTENNAS =====================================================================================
 
-void AntennaSetup()
+int Antenna::GetFilteredValue()
 {
-  pinMode(ANTENNA_PIN, INPUT);
-  
-  // Настройка ADC
-  analogReadResolution(12);
-  analogSetAttenuation(ADC_11db);
+  static float filtered = 0;
+
+  int raw = analogRead(pin);
+
+  filtered = filtered * (1 - filter_coeff) + raw * filter_coeff;
+  return (int)filtered;
 }
 
-void AntennaCalibrate()
+float Antenna::GetFilteredValueNormalized()
+{
+  int range = MAX_RAW_VALUE - MIN_RAW_VALUE;
+  
+  if (range <= 0)
+  {
+    ON_DEBUG(Serial.printf("equal MAX_RAW_VALUE and MIN_RAW_VALUE!"));
+    return 0;
+  }
+
+  float norm = float(GetFilteredValue() - MIN_RAW_VALUE) / float(range);
+  norm = constrain(norm, 0.0f, 1.0f);
+
+  return norm;
+}
+
+// void AntennaSetup()
+// {
+//   pinMode(ANTENNA_PIN, INPUT);
+  
+//   // Настройка ADC
+// }
+
+void Antenna::Calibrate()
 {
   Serial.println("=== ТЕРМЕНВОКС ===");
   Serial.println("Определи значения MIN и MAX:");
@@ -186,7 +316,7 @@ void AntennaCalibrate()
 
   while (millis() - startTime < CALIBRATION_TIME)
   {
-      int val = analogRead(ANTENNA_PIN);
+      int val = analogRead(pin);
       sumBase += val;
       countBase++;
 
@@ -208,7 +338,7 @@ void AntennaCalibrate()
 
   while (millis() - startTime < CALIBRATION_TIME)
   {
-      int val = analogRead(ANTENNA_PIN);
+      int val = analogRead(pin);
       sumTouch += val;
       countTouch++;
 
@@ -229,49 +359,42 @@ void AntennaCalibrate()
   Serial.println("\nЗагрузи код с новыми значениями!");
 }
 
-int AntennaGetValue()
-{
-  // Чтение с фильтрацией
-  static int histValues[3] = {0};
-  histValues[0] = analogRead(ANTENNA_PIN);
-  int filteredValue = (histValues[0] + histValues[1] + histValues[2]) / 3;
-  histValues[2] = histValues[1];
-  histValues[1] = histValues[0];
+// int AntennaGetValue()
+// {
+//   // // Чтение с фильтрацией
+//   // static int histValues[3] = {0};
+//   // histValues[0] = analogRead(ANTENNA_PIN);
+//   // int filteredValue = (histValues[0] + histValues[1] + histValues[2]) / 3;
+//   // histValues[2] = histValues[1];
+//   // histValues[1] = histValues[0];
 
-  return filteredValue;
-}
+//   // return filteredValue;
+
+//   static float filtered = 0;
+//   int raw = analogRead(ANTENNA_PIN);
+//   filtered = filtered * 0.9f + raw * 0.1f;
+//   return (int)filtered;
+// }
+//============= /ANTENNAS ====================================================================================
 
 
-void DynamicSing(int antenna_value)
+//============= SOUND ========================================================================================
+
+void DynamicSing(float volume_normd)
 {
   static uint8_t audioBuffer[BUFFER_SIZE];
 
   // Расчет громкости с МЕРТВОЙ ЗОНОЙ
   float targetVolume = 0.0f;
-  
-  if (antenna_value > MIN_RAW_VALUE)
-  {
-    int range = MAX_RAW_VALUE - MIN_RAW_VALUE;
-    if (range <= 0)
-    {
-      ON_DEBUG(Serial.printf("equal MAX_RAW_VALUE and MIN_RAW_VALUE!"));
-      return;
-    }
-
-    float norm = float(antenna_value - MIN_RAW_VALUE) / float(range);
-    
-    // Ограничение
-    norm = constrain(norm, 0.0f, 1.0f);
     
     // Убираем мертвую зону
-    if (norm > DEAD_ZONE) {
-      norm = (norm - DEAD_ZONE) / (1.0f - DEAD_ZONE);
-      norm = constrain(norm, 0.0f, 1.0f);
-      
-      // Степенное преобразование
-      targetVolume = powf(norm, VOLUME_POWER_CURVE);
-      targetVolume = fminf(targetVolume * 1.3f, 1.0f);
-    }
+  if (volume_normd > DEAD_ZONE) {
+    volume_normd = (volume_normd - DEAD_ZONE) / (1.0f - DEAD_ZONE);
+    volume_normd = constrain(volume_normd, 0.0f, 1.0f);
+    
+    // Степенное преобразование
+    targetVolume = powf(volume_normd, VOLUME_POWER_CURVE);
+    targetVolume = fminf(targetVolume * 1.3f, 1.0f);
   }
 
   // Расчет частоты
@@ -313,7 +436,7 @@ void DynamicSing(int antenna_value)
       // График громкости
       int bars = (int)(smoothedVolume * 20.0f);
       
-      Serial.printf("ADC:%4d | Г:%5.2f [", antenna_value, smoothedVolume);
+      Serial.printf("ADC:%4d | Г:%5.2f [", volume_normd, smoothedVolume);
       for (int i = 0; i < 20; i++) {
         Serial.print(i < bars ? "█" : "░");
       }
@@ -324,6 +447,77 @@ void DynamicSing(int antenna_value)
   );
 }
 
+
+void DynamicSingTone(float volume_normd, float tone_normd)
+{
+  static uint8_t audioBuffer[BUFFER_SIZE];
+
+  // ---------- ГРОМКОСТЬ: нормализация + мёртвая зона + степенная кривая ----------
+  float targetVolume = 0.0f;
+
+  // ограничим на всякий случай
+  volume_normd = constrain(volume_normd, 0.0f, 1.0f);
+
+  if (volume_normd > DEAD_ZONE) {
+    // сдвигаем относительно мёртвой зоны и растягиваем
+    float v = (volume_normd - DEAD_ZONE) / (1.0f - DEAD_ZONE);
+    v = constrain(v, 0.0f, 1.0f);
+
+    // степенная кривая чувствительности
+    targetVolume = powf(v, VOLUME_POWER_CURVE);
+    targetVolume = fminf(targetVolume * 1.3f, 1.0f);
+  }
+
+  // ---------- ТОН: независимый от громкости ----------
+  tone_normd = constrain(tone_normd, 0.0f, 1.0f);
+  float targetFrequency = BASE_FREQ + (MAX_FREQ - BASE_FREQ) * tone_normd;
+
+  // ---------- СГЛАЖИВАНИЕ ----------
+  smoothedVolume    = smoothedVolume    * (1.0f - VOLUME_SMOOTHING) + 
+                      targetVolume      * VOLUME_SMOOTHING;
+  smoothedFrequency = smoothedFrequency * (1.0f - FREQ_SMOOTHING) + 
+                      targetFrequency   * FREQ_SMOOTHING;
+
+  // ---------- ГЕНЕРАЦИЯ ЗВУКА ----------
+  if (USE_SOUND && smoothedVolume > 0.01f)
+  {
+    GenerateSmoothTone(audioBuffer, smoothedFrequency, smoothedVolume);
+  }
+  else
+  {
+    // тишина (середина диапазона DAC)
+    memset(audioBuffer, 128, sizeof(audioBuffer));
+  }
+
+  // ---------- ВОСПРОИЗВЕДЕНИЕ ----------
+  int delayUs = 1000000 / SAMPLE_RATE;
+  unsigned long nextTime = micros();
+  
+  for (int i = 0; i < BUFFER_SIZE; i++)
+  {
+    dac_output_voltage(DAC_CH, audioBuffer[i]);
+    nextTime += delayUs;
+    long wait = nextTime - micros();
+    if (wait > 0) delayMicroseconds(wait);
+  }
+
+  ON_DEBUG(
+    static uint32_t lastPrint = 0;
+    if (millis() - lastPrint > 150)
+    {
+      int bars = (int)(smoothedVolume * 20.0f);
+      
+      Serial.printf("VOL_N:%.2f TONE_N:%.2f | VOL:%.2f [", 
+                    volume_normd, tone_normd, smoothedVolume);
+      for (int i = 0; i < 20; i++) {
+        Serial.print(i < bars ? "█" : "░");
+      }
+      Serial.printf("] %4.0f Hz\n", smoothedFrequency);
+      
+      lastPrint = millis();
+    }
+  );
+}
 
 void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume)
 {
@@ -342,7 +536,7 @@ void GenerateSmoothTone(uint8_t* buffer, float frequency, float volume)
     if (phase >= 1.0f) phase -= 1.0f;
 
     // Усиление с насыщением
-    sample = tanhf(sample * volume * VOLUME_BOOST * VOLUME) * 0.9f;
+    sample = tanhf(sample * volume * VOLUME_BOOST * VOLUME * VOLUME_MULTIPLIER) * 0.9f;
 
     float dacValue = 128.0f + sample * 120.0f;
     if (dacValue < 0.0f) dacValue = 0.0f;
