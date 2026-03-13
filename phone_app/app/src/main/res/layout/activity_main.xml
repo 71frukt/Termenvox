@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="не подключено"
+            android:textSize="16sp"
+            android:padding="4dp" />
+
+        <Button
+            android:id="@+id/connectButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Подключиться" />
+    </LinearLayout>
+
+
+    <!-- ПАРАМЕТР 1 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Параметр 1"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:text="MIN:"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp" />
+
+        <EditText
+            android:id="@+id/min1EditText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="0" />
+
+        <TextView
+            android:text="MAX:"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp" />
+
+        <EditText
+            android:id="@+id/max1EditText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="4095" />
+    </LinearLayout>
+
+    <SeekBar
+        android:id="@+id/seekBar1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/value1TextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Значение 1: -"
+        android:layout_marginTop="4dp" />
+
+
+    <!-- ПАРАМЕТР 2 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Параметр 2"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:text="MIN:"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp" />
+
+        <EditText
+            android:id="@+id/min2EditText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="0" />
+
+        <TextView
+            android:text="MAX:"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp" />
+
+        <EditText
+            android:id="@+id/max2EditText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="4095" />
+    </LinearLayout>
+
+    <SeekBar
+        android:id="@+id/seekBar2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/value2TextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Значение 2: -"
+        android:layout_marginTop="4dp" />
+
+
+    <!-- РАЗДЕЛ ГРОМКОСТИ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="16dp">
+
+        <!-- СЛЕВА: надпись Громкость -->
+
+        <!-- ПУСТОЕ ПРОСТРАНСТВО -->
+
+        <TextView
+            android:id="@+id/volumeLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="60dp"
+            android:layout_marginEnd="1dp"
+            android:text="Чувствительность"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- СПРАВА: значение + ползунок -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <!-- Значение громкости -->
+            <TextView
+                android:id="@+id/volumeValueTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="50"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- ОПУЩЕННЫЙ ПОЛЗУНОК -->
+            <SeekBar
+                android:id="@+id/volumeSeekBar"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="50"
+                android:rotation="270"
+                android:layout_marginTop="80dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- НИЖНИЕ ГАЛОЧКИ "звук" и "мышь" -->
+    <LinearLayout
+        android:id="@+id/bottomCheckBoxesLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="90dp">
+
+        <!-- Блок "звук" -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginEnd="62dp">
+
+            <CheckBox
+                android:id="@+id/soundCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="звук"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Блок "мышь" -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <CheckBox
+                android:id="@+id/mouseCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="мышь"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+</LinearLayout>
+
+

@@ -11,7 +11,7 @@
 
 //============= ANTENNAS =====================================================================================
 #define ANTENNA_X_PIN    32
-#define ANTENNA_Y_PIN    34
+#define ANTENNA_Y_PIN    33
 
 int MIN_RAW_VALUE = 100;    // Минимальное значение ADC
 int MAX_RAW_VALUE = 900;    // Максимальное при полном касании
@@ -244,18 +244,18 @@ void loop()
   float antenna_x = AntennaX.GetFilteredValueNormalized();
   float antenna_y = AntennaY.GetFilteredValueNormalized();
 
-  if (USE_SOUND)
-  {
-    DynamicSingTone(antenna_x, antenna_y);
-  }
+  // if (USE_SOUND)
+  // {
+  //   DynamicSingTone(antenna_x, antenna_y);
+  // }
 
-  if (USE_MOUSE)
-  {
+  // if (USE_MOUSE)
+  // {
     MouseController.Update(antenna_x, antenna_y);
     MouseController.SerialTranslate();
 
     delay(100);
-  }
+  // }
 }
 
 

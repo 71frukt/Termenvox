@@ -31,7 +31,7 @@ def parse_goto(line: str):
     Возвращает (x, y) как float или None
     """
     parts = line.strip().split()
-    if len(parts) != 3 or parts[0] != "GOTO":
+    if len(parts) != 3 or parts[0] != "GOTO": 
         return None
 
     try:
